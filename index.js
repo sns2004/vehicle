@@ -65,6 +65,34 @@ app.post('/logins', async (req, res) => {
     return res.json({ error: 'Internal server error' });
   }
 });
+
+app.get('/userdata', async (req, res) => {
+  try {
+    const database = client.db("User");
+    const collection1 = database.collection("userdetails");
+
+    const userData = await collection1.find().toArray();
+
+    if (userData.length === 0) {
+      return res.json({ message: 'No data found' });
+    }
+
+    // Print the retrieved data
+    userData.forEach(user => {
+      console.log('User Data:');
+      console.log('Name: ', user.name);
+      console.log('Email: ', user.email);
+      // Add more properties as needed
+      console.log('-----------------------');
+    });
+
+    res.json({ message: 'Data retrieved successfully', userData });
+  } catch (error) {
+    console.log('Error retrieving data:', error);
+    res.json({ error: 'Error retrieving data' });
+  }
+});
+
 mongoconnect();
 app.listen(port,()=>{
 console.log("Server is running on port : ",port);
