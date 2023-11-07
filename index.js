@@ -7,7 +7,7 @@ const accountSid = 'AC8a81dbd914e2948549932927c86f051d';
 const authToken = 'e327de71047601a49f3440f2d3a78527';
 const tclient = twilio(accountSid, authToken);
 const app=express();
-const port = process.env.PORT || 5001;
+const port = process.env.PORT || 5000;
 const uri =
   "mongodb+srv://Shanjaidb:SnsKumaar@shanjai.5di3hqn.mongodb.net/?retryWrites=true&w=majority";
 app.use(cors());
