@@ -8,6 +8,7 @@ const uri =
   "mongodb+srv://Shanjaidb:SnsKumaar@shanjai.5di3hqn.mongodb.net/?retryWrites=true&w=majority";
 app.use(cors());
 app.use(express.static(path.join(__dirname + "/public")));
+app.use(express.json());
 
 const client=new MongoClient (uri,{useNewUrlParser: true, useUnifiedTopology: true});
 async function mongoconnect(){
