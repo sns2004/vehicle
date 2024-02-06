@@ -1,8 +1,12 @@
 var express =require("express");
 var cors=require("cors");
 const twilio = require('twilio');
-var {MongoClient}= require("mongodb");
+const bodyParser = require('body-parser');
+var {MongoClient,ObjectId}= require("mongodb");
+
+
 var path=require("path");
+// const { Console } = require("console");
 const accountSid = 'AC8a81dbd914e2948549932927c86f051d';
 const authToken = 'e327de71047601a49f3440f2d3a78527';
 const tclient = twilio(accountSid, authToken);
@@ -13,6 +17,9 @@ const uri =
 app.use(cors());
 app.use(express.static(path.join(__dirname + "/public")));
 app.use(express.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json());
+
 
 const client=new MongoClient (uri,{useNewUrlParser: true, useUnifiedTopology: true});
 async function mongoconnect(){
@@ -24,6 +31,9 @@ async function mongoconnect(){
     console.error("Error :",error );
   }
 }
+app.post('/hello',(req,res)=>{
+  console.log("Machan Vanakam da");
+})
 app.post('/signups',async (req,res)=>{
   try{
     const user = req.body;
@@ -82,14 +92,6 @@ app.get('/userdata', async (req, res) => {
       return res.json({ message: 'No data found' });
     }
 
-    // Print the retrieved data
-    userData.forEach(user => {
-      console.log('User Data:');
-      console.log('Name: ', user.name);
-      console.log('Email: ', user.email);
-      // Add more properties as needed
-      console.log('-----------------------');
-    });
 
     res.json({ message: 'Data retrieved successfully', userData });
   } catch (error) {
@@ -97,10 +99,10 @@ app.get('/userdata', async (req, res) => {
     res.json({ error: 'Error retrieving data' });
   }
 });
-async function checkFitnessAndSendSMS(collectionName) {
+async function checkFitnessAndSendSMS(Message,Call,Whatsapp,Email) {
   try {
     const database = client.db("User");
-    const collection = database.collection(`${collectionName}`);
+    const collection = database.collection(Email);
     const records = await collection.find({}).toArray();
   
 
@@ -108,7 +110,9 @@ async function checkFitnessAndSendSMS(collectionName) {
     const twoWeeksFromNow = new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000);
 
     await Promise.all(records.map(async (record) => {
-      const fitnessDate = new Date(record.Fitness);
+      const fitnessDate = new Date(record.result.fit_up_to);
+      const InsuranceDate = new Date(record.result.insurance_upto);
+      const TaxDate =new Date(record.result.tax);
 
      
       const lastNotificationDate = record.LastNotificationDate || new Date(0);
@@ -121,21 +125,72 @@ async function checkFitnessAndSendSMS(collectionName) {
             { _id: record._id },
             { $set: { LastNotificationDate: today } }
           );
-   
+   if(Message == "Active"){
           tclient.messages.create({
-          body: `Your fitness for Vehicle No: ${record.Vehicle_No} is ending in ${remainingDays} days. Renew it soon!`,
-          from: +19177460649,
-          to: record.Phone_No,
-        });
-      tclient.calls.create({
-          twiml: `<Response><Say>HELLO ${record.Owner_Name},I AM CALLING FROM SNS DRIVING SCHOOL YOUR VEHICLE NUMBER ${record.Vehicle_No} FITNESS IS GOING TO END IN ${remainingDays} days PLEASE UPGRADE IT.</Say></Response>`,
-          to:record.Phone_No,
-          from: +19177460649,
-        });
+          body: `Your fitness for Vehicle No: ${record.result.rc_number} is ending in ${remainingDays} days. Renew it soon!`,
+          from: +12527760348,
+          to: record.result.phone_num,
+        });}
+    //  if(Call == "Active"){   
+    //   tclient.calls.create({
+    //       twiml: `<Response><Say>HELLO ${record.result.owner_name},I AM CALLING FROM SNS DRIVING SCHOOL YOUR VEHICLE NUMBER ${record.Vehicle_No} FITNESS IS GOING TO END IN ${remainingDays} days PLEASE UPGRADE IT.</Say></Response>`,
+    //       to:record.result.phone_num,
+    //       from: +19177460649,
+    //     });}
     
-        console.log(`Call and SMS initiated for record with Vehicle No: ${record.Vehicle_No}`);
+        console.log(`Call and SMS initiated for record with Vehicle No: ${record.result.rc_number}`);
 
       }
+      if (InsuranceDate <= twoWeeksFromNow && today - lastNotificationDate >= 24 * 60 * 60 * 1000) {
+        const remainingDays = Math.floor((InsuranceDate - today) / (24 * 60 * 60 * 1000));
+
+      
+        await collection.updateOne(
+          { _id: record._id },
+          { $set: { LastNotificationDate: today } }
+        );
+ if(Message == "Active"){
+        tclient.messages.create({
+        body: `Your Insurance for Vehicle No: ${record.result.rc_number} is ending in ${remainingDays} days. Renew it soon!`,
+       
+        to: record.result.phone_num,
+        from:+12527760348,
+      });}
+   if(Call == "Active"){   
+    tclient.calls.create({
+        twiml: `<Response><Say>HELLO ${record.result.owner_name},I AM CALLING FROM SNS DRIVING SCHOOL YOUR VEHICLE NUMBER ${record.Vehicle_No} Insurance IS GOING TO END IN ${remainingDays} days PLEASE UPGRADE IT.</Say></Response>`,
+        to:record.result.phone_num,
+        from: +19177460649,
+      });}
+  
+      console.log(`Call and SMS initiated for record with Vehicle No: ${record.result.rc_number}`);
+
+    }
+    if (TaxDate <= twoWeeksFromNow && today - lastNotificationDate >= 24 * 60 * 60 * 1000) {
+      const remainingDays = Math.floor((TaxDate - today) / (24 * 60 * 60 * 1000));
+
+    
+      await collection.updateOne(
+        { _id: record._id },
+        { $set: { LastNotificationDate: today } }
+      );
+if(Message == "Active"){
+      tclient.messages.create({
+      body: `Your Tax for Vehicle No: ${record.result.rc_number} is ending in ${remainingDays} days. Renew it soon!`,
+      to: record.result.phone_num,
+      from: +19177460649,
+      
+    });}
+ if(Call == "Active"){   
+  tclient.calls.create({
+      twiml: `<Response><Say>HELLO ${record.result.owner_name},I AM CALLING FROM SNS DRIVING SCHOOL YOUR VEHICLE NUMBER ${record.Vehicle_No} Insurance IS GOING TO END IN ${remainingDays} days PLEASE UPGRADE IT.</Say></Response>`,
+      to:record.result.phone_num,
+      from: +19177460649,
+    });}
+
+    console.log(`Call and SMS initiated for record with Vehicle No: ${record.result.rc_number}`);
+
+  }
       }
     
   ));} catch (error) {
@@ -144,6 +199,18 @@ async function checkFitnessAndSendSMS(collectionName) {
 }
 
 
+app.post('/remainder',(req,res)=>{
+  try{
+       const { Message, Call,Whatsapp,Email } = req.body;
+       
+checkFitnessAndSendSMS(Message,Call,Whatsapp,Email);
+  
+  }
+  catch(error){
+   console.error('Error',error);
+  }
+});
+    
 app.post('/api/storeProduct', async (req, res) => {
   try {
     const product  = req.body;
@@ -160,25 +227,32 @@ app.post('/api/storeProduct', async (req, res) => {
   }
 });
 app.put('/update',async(req,res)=>{
+ 
   try{
   
     const { collectionName } = req.query;
   const product = req.body;
+ 
+
   const database = client.db("User");
+  console.log(product.rc_number);
+
   const collection1 = database.collection(`${collectionName}`);
-  const result = await collection1.updateOne({ _id: product._id }, { $set: product });
+
+
+  const result = await collection1.updateOne({ 'result.rc_number':product.rc_number }, { $set: {"result":product}});
   res.json({ message: 'Product updated successfully.'});}
   catch(error){
     console.error('Error:',error);
   }
  
 })
-app.delete('/api/deleteVehicle/:id', async (req, res) => {
+app.delete('/api/deleteVehicle/:license', async (req, res) => {
   
   try {
     const { collectionName } = req.query;
-    const id = req.params.id;
-    const result = await client.db("User").collection(`${collectionName}`).deleteOne({ _id:id });
+    const id = req.params.license;
+    const result = await client.db("User").collection(`${collectionName}`).deleteOne({ "result.rc_number":id});
 
     if (result.deletedCount === 1) {
       res.json({ message: 'Vehicle deleted successfully' });
@@ -210,8 +284,7 @@ app.get("/records", async (req, res) => {
       res.status(400).json({ error: "collectionName is missing or empty" });
       return;
     }
-    checkFitnessAndSendSMS(collectionName);
-    
+  
    
     const records = await getRecords(`${collectionName}`);
     res.json(records);
@@ -220,6 +293,29 @@ app.get("/records", async (req, res) => {
     res.status(500).json({ message: "Server Error" });
   }
 });
+app.post('/test/:Name',(req,res)=>{
+
+  console.log( req.params.Name)
+    
+})
+app.put('/api/updatePhoneNumber/:phid',async(req,res)=>{
+  try{
+  
+    const { phid } = req.params;
+    
+   
+    const { collectionName } = req.query;
+    const newPhoneNumber = req.body.newPhoneNumber;
+   
+  const database = client.db("User");
+  const collection1 = database.collection(`${collectionName}`);
+  const result = await collection1.updateOne({ _id:new ObjectId(phid) }, { $set: { "result.phone_num": newPhoneNumber } });
+ res.json({ success: true, message: 'Phone number updated successfully.' });}
+  catch(error){
+    console.error('Error:',error);
+  }
+ 
+})
 mongoconnect();
 app.listen(port,()=>{
 console.log("Server is running on port : ",port);
