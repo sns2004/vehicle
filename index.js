@@ -32,7 +32,7 @@ async function mongoconnect(){
   }
 }
 app.post('/hello',(req,res)=>{
-  console.log("Machan Vanakam da");
+  document.write("Machan Vanakam da");
 })
 app.post('/signups',async (req,res)=>{
   try{
